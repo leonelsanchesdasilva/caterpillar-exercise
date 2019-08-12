@@ -1,7 +1,6 @@
 package caterpillar.exercise.services;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -9,10 +8,12 @@ import java.util.Properties;
 public class ServiceImpl implements Service {
 
     private Map<String, Object> memoryCache;
+    private Map<String, Object> fileCache;
     private Properties properties;
 
     public ServiceImpl() {
         memoryCache = new HashMap<>();
+        fileCache = new HashMap<>();
         properties = new Properties();
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
         try (InputStream is = loader.getResourceAsStream("application.properties")) {
@@ -30,7 +31,19 @@ public class ServiceImpl implements Service {
     }
     public void put(String key, Object value) {
         if (Integer.parseInt(properties.getProperty("cacheSize")) <= memoryCache.size()) {
-            System.out.println("Cache is full");
+            try (ObjectInput objectInputStream = new ObjectInputStream(new BufferedInputStream(new FileInputStream("cache.txt")))) {
+                fileCache = (Map<String, Object>) objectInputStream.readObject();
+            } catch (Throwable cause) {
+                cause.printStackTrace();
+            }
+
+            fileCache.put(key, value);
+
+            try (ObjectOutput objectOutputStream = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream("cache.txt", false)))) {
+                objectOutputStream.writeObject(fileCache);
+            } catch (Throwable cause) {
+                cause.printStackTrace();
+            }
             return;
         }
 
